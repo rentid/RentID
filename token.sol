@@ -157,14 +157,17 @@ contract RentIDToken is BasicToken, Ownable
     // Amount of raised money in wei.
     uint256 public weiRaised;
     
-    //  Tokens rate formule
+    //  Tokens sold (denominated in ether)
     uint256 public tokensSold = 0;
+    
+    //  Token bonus rate
+    uint256 public bonusRatePerEther = 0;
     
     bool public finalized = false;
     
-   //  This is the 'Ticker' symbol and name for our Token.
-    string public constant symbol = "RENT";
-    string public constant name = "RentIDToken";
+    //  This is the 'Ticker' symbol and name for our Token.
+    string public constant symbol = "TESTID13";
+    string public constant name = "TESTNUMBER13";
     
     //  This is for how your token can be fracionalized. 
     uint8 public decimals = 18; 
@@ -201,15 +204,47 @@ contract RentIDToken is BasicToken, Ownable
 	
 	//  @dev gets the current rate of tokens per ether contributed
     //  @return number of tokens per ether
-    function setRate(uint256 _newRate) public onlyOwner
+    function setBonusRate(uint256 _newRate) public onlyOwner
     {
-		rate = _newRate;
+		bonusRatePerEther = _newRate;
     }
     
     //  @dev gets the current rate of tokens per ether contributed
     //  @return number of tokens per ether
     function getRate() public constant returns (uint256)
     {
+        uint256 rate;
+        
+        if(tokensSold < 10000)
+        {
+            //  First tier - 500 tokens per ether
+		    rate = 500;
+        }
+		else if(tokensSold < 20000)
+		{
+		    //  Second tier - 400 tokens per ether
+		    rate = 400;
+		}
+		else if(tokensSold < 30000)
+		{
+		    //  third tier - 300 tokens per ether
+		    rate = 300;
+		}
+		else if(tokensSold < 40000)
+		{
+		     //  fourth tier - 200 tokens per ether
+		    rate = 200;
+		}
+		else
+		{
+		    //  final tier - 100 tokens per ether
+		    rate = 100;
+		}	
+		
+		//  bonusRate adds an additional amount of tokens per ether
+		//  initially 0 but can be set by the owner
+		rate = rate.add(bonusRatePerEther);
+		
 		return rate;
     }
     
@@ -349,13 +384,14 @@ contract RentIDToken is BasicToken, Ownable
         //  Set finalized
         finalized = true;
 
-        // Burn tokens remaining
-        Burn(0xb1, balanceOf[0xb1]);
-        totalCoinSupply = totalCoinSupply.sub(balanceOf[0xb1]);
+        //  Transfer unsold tokens from the sale pool back to 
+        //  treasury wallet
+        balanceOf[wallet] = balanceOf[wallet].add(balanceOf[0xb1]);
         
-        //  Log transfer to burn address
-        Transfer(0xb1, 0x0, balanceOf[0xb1]);
+        //  Log transfer of tokens
+        Transfer(0xb1, wallet, balanceOf[0xb1]);
         
+        //  Set sale pool tokens to 0
         balanceOf[0xb1] = 0;
     }
 
@@ -376,9 +412,3 @@ contract RentIDToken is BasicToken, Ownable
         return(canPurchase);
     }
 }
-
-
-
-
-
-
