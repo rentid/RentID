@@ -60,6 +60,11 @@ contract Ownable
     }
 }
 
+contract ERC223ReceivingContract 
+{
+    function tokenFallback(address _from, uint _value, bytes _data) public;
+}
+
 contract BasicToken
 {
     using SafeMath for uint256;
@@ -75,16 +80,49 @@ contract BasicToken
     //  ( owner => value )
     mapping (address => uint256) public balanceOf;
 
-    //  @dev transfer token for a specified address
-    //  @param _to The address to transfer to.
-    //  @param _value The amount to be transferred.
-    function transfer( address _recipient, uint256 _value ) public 
-        returns( bool success )
+    function transfer(address to, uint value, bytes data) public returns(bool)
     {
-        balanceOf[msg.sender] = balanceOf[msg.sender].sub(_value);
-        balanceOf[_recipient] = balanceOf[_recipient].add(_value);
-        Transfer(msg.sender, _recipient, _value);
-        return true;
+        // Standard function transfer similar to ERC20 transfer with no _data .
+        // Added due to backwards compatibility reasons .
+        uint codeLength;
+
+        assembly {
+            // Retrieve the size of the code on target address, this needs assembly .
+            codeLength := extcodesize(to)
+        }
+
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(value);
+        balanceOf[to] = balanceOf[to].add(value);
+        
+        if(codeLength>0)
+        {
+            ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
+            receiver.tokenFallback(msg.sender, value, data);
+        }
+        Transfer(msg.sender, to, value);//, data);
+    }
+
+    // Standard function transfer similar to ERC20 transfer with no _data .
+    // Added due to backwards compatibility reasons .
+    function transfer(address to, uint value) public returns(bool)
+    {
+        uint codeLength;
+        bytes memory empty;
+
+        assembly {
+            // Retrieve the size of the code on target address, this needs assembly .
+            codeLength := extcodesize(to)
+        }
+
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(value);
+        balanceOf[to] = balanceOf[to].add(value);
+        
+        if(codeLength>0) 
+        {
+            ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
+            receiver.tokenFallback(msg.sender, value, empty);
+        }
+        Transfer(msg.sender, to, value);//, empty);
     }
     
     function transferFrom( address _owner, address _recipient, uint256 _value ) 
