@@ -65,7 +65,7 @@ contract ERC223ReceivingContract
     function tokenFallback(address _from, uint _value, bytes _data) public;
 }
 
-contract BasicToken
+contract BasicToken is ERC223ReceivingContract
 {
     using SafeMath for uint256;
     
@@ -79,6 +79,11 @@ contract BasicToken
     //  ownership map
     //  ( owner => value )
     mapping (address => uint256) public balanceOf;
+
+    function tokenFallback(address _from, uint _value, bytes _data) public
+    {
+        Received(_from,_value,_data);
+    }
 
     function transfer(address to, uint value, bytes data) public returns(bool)
     {
@@ -99,7 +104,7 @@ contract BasicToken
             ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
             receiver.tokenFallback(msg.sender, value, data);
         }
-        Transfer(msg.sender, to, value);//, data);
+        Transfer(msg.sender, to, value);
     }
 
     // Standard function transfer similar to ERC20 transfer with no _data .
@@ -122,7 +127,7 @@ contract BasicToken
             ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
             receiver.tokenFallback(msg.sender, value, empty);
         }
-        Transfer(msg.sender, to, value);//, empty);
+        Transfer(msg.sender, to, value);
     }
     
     function transferFrom( address _owner, address _recipient, uint256 _value ) 
@@ -175,6 +180,7 @@ contract BasicToken
     
     event Transfer( address indexed _owner, address indexed _recipient, uint256 _value );
     event Approval( address _owner, address _spender, uint256 _value );
+    event Received( address _from, uint256 _value, bytes data );
 
 }
 
