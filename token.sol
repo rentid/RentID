@@ -214,7 +214,10 @@ contract RentIDToken is BasicToken, Ownable
     string public constant name = "TESTNUMBER13";
     
     //  This is for how your token can be fracionalized. 
-    uint8 public decimals = 18; 
+    uint8 public decimals = 18;
+    
+    //  Lockout mapping
+    mapping (address => uint256) public lockoutMap;
     
     // Events
     event TokenPurchase(address indexed purchaser, uint256 value, 
@@ -224,6 +227,14 @@ contract RentIDToken is BasicToken, Ownable
     
     function RentIDToken() public 
     {
+    }
+    
+    //  @dev set lockout period for specified address
+    //  @param target - The address to specifiy lockout time
+    //  @param time - amount of time to lockout
+    function setLockout(address target, uint256 time) public onlyOwner
+    {
+        lockoutMap[target] = time;
     }
     
     //  @dev gets the sale pool balance
@@ -385,6 +396,24 @@ contract RentIDToken is BasicToken, Ownable
         return startDate.sub(getCurrentTimestamp());
     }
     
+    //  @dev transfer tokens from one address to another
+    //  @param _recipient - The address to receive tokens
+    //  @param _value - number of coins to send
+    //  @return true if no requires thrown
+    function transfer( address _recipient, uint256 _value, bytes _data ) public returns(bool)
+    {
+        //  Check to see if the sale has ended
+        require(finalized);
+        
+        //  Check to see if the sender is locked out from transferring tokens
+        require(endDate + lockoutMap[msg.sender] < getCurrentTimestamp());
+        
+        //  transfer
+        super.transfer(_recipient, _value, _data);
+        
+        return true;
+    }
+    
     
     //  @dev transfer tokens from one address to another
     //  @param _recipient - The address to receive tokens
@@ -394,6 +423,9 @@ contract RentIDToken is BasicToken, Ownable
     {
         //  Check to see if the sale has ended
         require(finalized);
+        
+        //  Check to see if the sender is locked out from transferring tokens
+        require(endDate + lockoutMap[msg.sender] < getCurrentTimestamp());
         
         //  transfer
         super.transfer(_recipient, _value);
@@ -405,7 +437,7 @@ contract RentIDToken is BasicToken, Ownable
     //  @param beneficiary - The address to receive tokens
     //  @param amount - number of coins to push
     //  @param lockout - lockout time 
-    function push(address beneficiary, uint256 amount) public 
+    function push(address beneficiary, uint256 amount, uint256 lockout) public 
         onlyOwner 
     {
         require(balanceOf[wallet] >= amount);
@@ -417,6 +449,10 @@ contract RentIDToken is BasicToken, Ownable
         //  Log transfer of tokens
         CompanyTokenPushed(beneficiary, amount);
         Transfer(wallet, beneficiary, amount);
+        
+        //  Set lockout if there's a lockout time
+        if(lockout > 0)
+            setLockout(beneficiary, lockout);
     }
     
     //  @dev Burns tokens from sale pool remaining after the sale
