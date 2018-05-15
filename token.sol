@@ -1,4 +1,4 @@
-pragma solidity 0.4.18;
+pragma solidity 0.4.23;
 
 library SafeMath
 {
@@ -37,7 +37,7 @@ contract Ownable
     
     //  @dev The Ownable constructor sets the original `owner` of the contract to the sender
     //  account.
-    function Ownable() public 
+    constructor() public 
     {
         owner = msg.sender;
     }
@@ -82,7 +82,7 @@ contract BasicToken is ERC223ReceivingContract
 
     function tokenFallback(address _from, uint _value, bytes _data) public
     {
-        Received(_from,_value,_data);
+        emit Received(_from,_value,_data);
     }
 
     function transfer(address to, uint value, bytes data) public returns(bool)
@@ -104,7 +104,7 @@ contract BasicToken is ERC223ReceivingContract
             ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
             receiver.tokenFallback(msg.sender, value, data);
         }
-        Transfer(msg.sender, to, value);
+        emit Transfer(msg.sender, to, value);
     }
 
     // Standard function transfer similar to ERC20 transfer with no _data .
@@ -127,13 +127,13 @@ contract BasicToken is ERC223ReceivingContract
             ERC223ReceivingContract receiver = ERC223ReceivingContract(to);
             receiver.tokenFallback(msg.sender, value, empty);
         }
-        Transfer(msg.sender, to, value);
+        emit Transfer(msg.sender, to, value);
     }
     
     function transferFrom( address _owner, address _recipient, uint256 _value ) 
         public returns( bool success )
     {
-        var _allowance = AllowanceLedger[_owner][msg.sender];
+        uint256 _allowance = AllowanceLedger[_owner][msg.sender];
         // Check is not needed because sub(_allowance, _value) will already 
         //  throw if this condition is not met
         // require (_value <= _allowance);
@@ -141,7 +141,7 @@ contract BasicToken is ERC223ReceivingContract
         balanceOf[_recipient] = balanceOf[_recipient].add(_value);
         balanceOf[_owner] = balanceOf[_owner].sub(_value);
         AllowanceLedger[_owner][msg.sender] = _allowance.sub(_value);
-        Transfer(_owner, _recipient, _value);
+        emit Transfer(_owner, _recipient, _value);
         return true;
     }
     
@@ -154,7 +154,7 @@ contract BasicToken is ERC223ReceivingContract
         AllowanceLedger[_owner][_spender] = _value;
         
         //  Fire off Approval event
-        Approval( _owner, _spender, _value);
+        emit Approval( _owner, _spender, _value);
         return true;
     }
     
@@ -225,7 +225,7 @@ contract RentIDToken is BasicToken, Ownable
     event CompanyTokenPushed(address indexed beneficiary, uint256 amount);
     event Burn( address burnAddress, uint256 amount);
     
-    function RentIDToken() public 
+    constructor() public 
     {
     }
     
@@ -329,13 +329,13 @@ contract RentIDToken is BasicToken, Ownable
         balanceOf[wallet] = _totalSupply.sub(saleCap);
         
         //  Log transfer of tokens to company wallet
-        Transfer(0x0, wallet, balanceOf[wallet]);
+        emit Transfer(0x0, wallet, balanceOf[wallet]);
         
         //  Set balance of sale pool
         balanceOf[0xb1] = saleCap;
         
         //  Log transfer of tokens to ICO sale pool
-        Transfer(0x0, 0xb1, saleCap);
+        emit Transfer(0x0, 0xb1, saleCap);
     }
     
     //  Fallback function is entry point to buy tokens
@@ -368,10 +368,10 @@ contract RentIDToken is BasicToken, Ownable
         // Transfer
         balanceOf[0xb1] = balanceOf[0xb1].sub(tokenAmount);
         balanceOf[beneficiary] = balanceOf[beneficiary].add(tokenAmount);
-        TokenPurchase(msg.sender, weiAmount, tokenAmount);
+        emit TokenPurchase(msg.sender, weiAmount, tokenAmount);
         
         //  Log the transfer of tokens
-        Transfer(0xb1, beneficiary, tokenAmount);
+        emit Transfer(0xb1, beneficiary, tokenAmount);
         
         // Update state.
         uint256 updatedWeiRaised = weiRaised.add(weiAmount);
@@ -447,8 +447,8 @@ contract RentIDToken is BasicToken, Ownable
         balanceOf[beneficiary] = balanceOf[beneficiary].add(amount);
         
         //  Log transfer of tokens
-        CompanyTokenPushed(beneficiary, amount);
-        Transfer(wallet, beneficiary, amount);
+        emit CompanyTokenPushed(beneficiary, amount);
+        emit Transfer(wallet, beneficiary, amount);
         
         //  Set lockout if there's a lockout time
         if(lockout > 0)
@@ -469,7 +469,7 @@ contract RentIDToken is BasicToken, Ownable
         balanceOf[wallet] = balanceOf[wallet].add(balanceOf[0xb1]);
         
         //  Log transfer of tokens
-        Transfer(0xb1, wallet, balanceOf[0xb1]);
+        emit Transfer(0xb1, wallet, balanceOf[0xb1]);
         
         //  Set sale pool tokens to 0
         balanceOf[0xb1] = 0;
